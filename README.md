@@ -1,17 +1,19 @@
 AI Room Helper（MVP）
 
-面向非设计师的室内设计助手。技术栈：Next.js(App Router) + drizzle + better-auth + next-intl + Tailwind + three.js（R3F）。
+面向非设计师的室内设计助手。技术栈：Next.js(App Router) + Drizzle + Supabase Postgres + better-auth + next-intl + Tailwind + three.js（R3F）。
 
 快速开始
 
 - Node 18+
-- 本地 SQLite（默认 `./data/db.sqlite`）
+- 数据库：Supabase PostgreSQL（也可使用任意 PostgreSQL）
 
 命令：
 
     npm install
+    # 首次生成迁移（本地不需连库）
     npm run db:generate
-    mkdir -p data && npm run db:migrate
+    # 连接 Supabase 并执行迁移（需在 .env 设置 SUPABASE_DB_URL 或 DATABASE_URL）
+    npm run db:migrate
     npm run dev
 
 启动后访问：
@@ -25,7 +27,7 @@ AI Room Helper（MVP）
 模块说明
 
 - 鉴权：better-auth + drizzle 适配，API 路由 `src/app/api/auth/[...all]/route.ts`
-- 数据库：drizzle-orm（SQLite），表定义在 `src/db/schema.ts`
+- 数据库：drizzle-orm（PostgreSQL / Supabase），表定义在 `src/db/schema.ts`
 - 多语言：next-intl，中间件 `src/middleware.ts`，消息文件 `src/messages/*.json`
 - 三维预览：@react-three/fiber + three，页面 `src/app/[locale]/viewer/page.tsx`
 - 计费抽象：`src/lib/billing.ts`（占位，待确认实际支付服务商 creem/stripe/paddle）
@@ -49,8 +51,9 @@ AI Room Helper（MVP）
 
 环境变量（示例）
 
-    # 数据库（本地可省略）
-    DATABASE_URL=./data/db.sqlite
+    # 数据库（Supabase PostgreSQL 连接串，至少设置其一）
+    SUPABASE_DB_URL=postgresql://user:password@host:port/dbname?sslmode=require
+    DATABASE_URL=
     APP_BASE_URL=http://localhost:3000
     
     # 生成（Replicate）
@@ -84,7 +87,7 @@ AI Room Helper（MVP）
 
 目录结构（关键）
 
-- `src/db/`：Drizzle 实例与表
+- `src/db/`：Drizzle 实例与表（PostgreSQL）
 - `src/lib/auth.ts`：better-auth 实例
 - `src/app/api/auth/[...all]/route.ts`：鉴权 API
 - `src/app/[locale]/*`：多语言路由下的页面

@@ -7,7 +7,7 @@ import { db } from "@/db";
 export const auth = betterAuth({
   // 数据库适配（Drizzle + SQLite）
   database: drizzleAdapter(db, {
-    provider: "sqlite",
+    provider: "pg",
   }),
   // 启用邮箱+密码（后续可扩展 OAuth / Passkey / Magic Link）
   emailAndPassword: {
@@ -16,4 +16,3 @@ export const auth = betterAuth({
   // 确保在 Next.js Server Actions/Route Handler 自动处理 Set-Cookie
   plugins: [nextCookies()],
 });
-

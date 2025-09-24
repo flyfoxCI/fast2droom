@@ -1,76 +1,57 @@
-// 中文注释：Better Auth + Drizzle 的基础表结构（SQLite 版本）
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import { sql } from "drizzle-orm";
+// 中文注释：Better Auth + Drizzle 的基础表结构（PostgreSQL / Supabase 版本）
+import { pgTable, text, boolean, timestamp, integer } from "drizzle-orm/pg-core";
 
 // 用户表（保持与 better-auth 默认命名一致：user）
-export const user = sqliteTable("user", {
+export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
+  emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
 // 会话表（保持与 better-auth 默认命名一致：session）
-export const session = sqliteTable("session", {
+export const session = pgTable("session", {
   id: text("id").primaryKey(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
   token: text("token").notNull().unique(),
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
 });
 
 // 第三方/本地账号表（保持与 better-auth 默认命名一致：account）
-export const account = sqliteTable("account", {
+export const account = pgTable("account", {
   id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
-  userId: text("user_id")
-    .notNull()
-    .references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
   idToken: text("id_token"),
-  accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
-  refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp" }),
+  accessTokenExpiresAt: timestamp("access_token_expires_at"),
+  refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
   scope: text("scope"),
   password: text("password"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" })
-    .default(sql`CURRENT_TIMESTAMP`)
-    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
 // 业务侧扩展：项目/房间/资源/任务/计费
-export const project = sqliteTable("project", {
+export const project = pgTable("project", {
   id: text("id").primaryKey(),
   ownerId: text("owner_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
-export const room = sqliteTable("room", {
+export const room = pgTable("room", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull().references(() => project.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
@@ -78,22 +59,23 @@ export const room = sqliteTable("room", {
   lengthMm: integer("length_mm"),
   widthMm: integer("width_mm"),
   heightMm: integer("height_mm"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
-export const asset = sqliteTable("asset", {
+export const asset = pgTable("asset", {
   id: text("id").primaryKey(),
   projectId: text("project_id").references(() => project.id, { onDelete: "set null" }),
   roomId: text("room_id").references(() => room.id, { onDelete: "set null" }),
-  kind: text("kind").notNull(), // image360 | photo | model | texture | plan
+  kind: text("kind").notNull(), // image360 | photo | model | texture | plan | realsee_link
   url: text("url").notNull(),
   meta: text("meta"), // JSON 字符串：EXIF、相机参数、色板等
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const job = sqliteTable("job", {
+export const job = pgTable("job", {
   id: text("id").primaryKey(),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
   projectId: text("project_id").references(() => project.id, { onDelete: "cascade" }),
   roomId: text("room_id").references(() => room.id, { onDelete: "set null" }),
   type: text("type").notNull(), // render2d | render360 | depth | inpaint | export
@@ -101,28 +83,27 @@ export const job = sqliteTable("job", {
   input: text("input"), // JSON：提示词、参考图、参数
   output: text("output"), // JSON：结果 URL、度量
   error: text("error"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
-export const subscription = sqliteTable("subscription", {
+export const subscription = pgTable("subscription", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   plan: text("plan").notNull(), // monthly | yearly
   status: text("status").notNull(), // active | past_due | canceled | trialing
-  periodStart: integer("period_start", { mode: "timestamp" }),
-  periodEnd: integer("period_end", { mode: "timestamp" }),
-  provider: text("provider"), // 例如：creem / stripe / paddle（待确认）
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  provider: text("provider"), // creem
   externalId: text("external_id"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().$onUpdate(() => new Date()).notNull(),
 });
 
-export const credit = sqliteTable("credit", {
+export const credit = pgTable("credit", {
   id: text("id").primaryKey(),
   userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
   amount: integer("amount").notNull(), // 正数：充值；负数：消耗
   reason: text("reason"), // purchase | render | export | admin_adjust
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`CURRENT_TIMESTAMP`).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-

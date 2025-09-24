@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import React, { useState } from "react";
 
 export default function DesignPage() {
   const [prompt, setPrompt] = useState("");
@@ -8,6 +8,18 @@ export default function DesignPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [images, setImages] = useState<string[]>([]);
+  const [uid, setUid] = useState("");
+
+  // 与 billing 页面保持一致，匿名ID占位（未接鉴权时可用）
+  React.useEffect(() => {
+    const saved = localStorage.getItem("uid");
+    if (saved) setUid(saved);
+    else {
+      const v = `guest-${crypto.randomUUID()}`;
+      localStorage.setItem("uid", v);
+      setUid(v);
+    }
+  }, []);
 
   async function submit() {
     setStatus("提交中...");
@@ -16,6 +28,7 @@ export default function DesignPage() {
     fd.set("prompt", prompt);
     if (photo) fd.set("photo", photo);
     if (ref) fd.set("ref", ref);
+    fd.set("userId", uid);
     const res = await fetch("/api/jobs/generate", { method: "POST", body: fd });
     const data = await res.json();
     setJobId(data.id);

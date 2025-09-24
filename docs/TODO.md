@@ -10,9 +10,9 @@
 ## 支付/订阅（creem.io）
 - [x] checkout API + 封装
 - [x] webhook 路由（签名校验留位）
-- [ ] 签名校验实现（需 `CREEM_WEBHOOK_SECRET`）
-- [ ] 事件落库：订阅状态更新、积分入账
-- [ ] 前端：购买跳转/回跳页面状态（success/cancel）
+- [x] 签名校验实现（需 `CREEM_WEBHOOK_SECRET`）
+- [x] 事件落库：订阅状态更新、积分入账（基础版）
+- [x] 前端：购买跳转/回跳页面状态（success/cancel）
 
 ## 积分
 - [ ] 生成前扣费：`PAYWALL_ENFORCE=true` 时检查订阅/积分
@@ -24,12 +24,12 @@
 - [ ] 保存至数据库并归档到项目
 
 ## UI（shadcn）
-- [ ] Button/Input/Textarea/Card/Label 组件
-- [ ] 导航条 + 布局
+- [x] Button/Input/Textarea/Card/Label 组件（自研轻量版）
+- [x] 导航条 + 布局
 - [ ] 主题/暗色
 
 ## 仪表盘
-- [ ] `/[locale]/dashboard` 列表展示最近任务（状态、结果图）
+- [x] `/[locale]/dashboard` 列表展示最近任务（状态、结果图）
 - [ ] 任务筛选与查看详情
 
 ## 文档与配置
@@ -37,4 +37,3 @@
 - [x] .env.example 补全
 - [x] 产品/技术计划（本文件 + PLAN.md）
 - [ ] 推荐模型清单（建议填入 `.env` 的示例）
-

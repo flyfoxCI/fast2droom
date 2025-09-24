@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/db";
-import { job } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { job, credit, subscription } from "@/db/schema";
+import { eq, and, gte, lte, sql as dsql } from "drizzle-orm";
 import { saveToPublicUploads } from "@/lib/upload";
 import { generateWithReplicate } from "@/lib/generation/providers/replicate";
 import { config } from "@/config/app";
@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
     const prompt = String(form.get("prompt") || "").trim();
+    const userId = String(form.get("userId") || "").trim() || undefined;
     if (!prompt) return new Response("缺少 prompt", { status: 400 });
 
     const photo = form.get("photo");
@@ -34,7 +35,37 @@ export async function POST(req: NextRequest) {
     const strengthStr = String(form.get("strength") || "").trim();
     const strength = strengthStr ? Number(strengthStr) : undefined;
 
-    // TODO：当 config.paywallEnforce 为 true：检查订阅/积分（留待 creem 打通后开启）
+    // 订阅/积分校验（仅在开启 paywall 时）
+    let hasSubscription = false;
+    let balance = 0;
+    if (config.paywallEnforce) {
+      if (!userId) {
+        return new Response("未登录或缺少用户ID", { status: 401 });
+      }
+      const now = new Date();
+      const subs = await db
+        .select()
+        .from(subscription)
+        .where(
+          and(
+            eq(subscription.userId, userId),
+            eq(subscription.provider, "creem"),
+            eq(subscription.status, "active" as any),
+          ),
+        );
+      hasSubscription = subs.some((s) => !s.periodStart || !s.periodEnd || (s.periodStart! <= now && now <= s.periodEnd!));
+
+      if (!hasSubscription) {
+        const rows = await db
+          .select({ sum: dsql<number>`coalesce(sum(${credit.amount}), 0)` })
+          .from(credit)
+          .where(eq(credit.userId, userId));
+        balance = Number(rows[0]?.sum || 0);
+        if (balance < config.creditCostPerRender) {
+          return new Response("积分不足，请购买积分或订阅", { status: 402 });
+        }
+      }
+    }
 
     // 记录任务
     const [created] = await db
@@ -42,6 +73,7 @@ export async function POST(req: NextRequest) {
       .values({
         id: crypto.randomUUID(),
         type: "render2d",
+        userId,
         status: "queued",
         input: JSON.stringify({ prompt, photo: savedPhoto.url, ref: savedRefPath ? savedRefPath : null }),
         createdAt: new Date(),
@@ -67,6 +99,17 @@ export async function POST(req: NextRequest) {
           updatedAt: new Date(),
         })
         .where(eq(job.id, created.id));
+
+      // 成功后扣费（无订阅时）
+      if (config.paywallEnforce && userId && !hasSubscription) {
+        await db.insert(credit).values({
+          id: crypto.randomUUID(),
+          userId,
+          amount: -config.creditCostPerRender,
+          reason: "render",
+          createdAt: new Date(),
+        });
+      }
     } catch (e: any) {
       if (config.fakeGenerationFallback) {
         await db
