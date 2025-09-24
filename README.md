@@ -14,6 +14,8 @@ AI Room Helper（MVP）
     npm run db:generate
     # 连接 Supabase 并执行迁移（需在 .env 设置 SUPABASE_DB_URL 或 DATABASE_URL）
     npm run db:migrate
+    # 启动开发服务
+    npm run dev
     npm run dev
 
 启动后访问：
@@ -21,8 +23,17 @@ AI Room Helper（MVP）
 - 登录页 `/{locale}/auth/sign-in`
 - 3D 预览 `/{locale}/viewer`
 - 生成页面 `/{locale}/design`（上传现场照片与参考图，调用可配置 Replicate 模型生成）
+  - 默认：OpenRouter + `google/gemini-2.5-flash-image`（可改 `GEN_PROVIDER`/`OPENROUTER_MODEL`）
+  - 备选：Replicate（ControlNet-Depth + style_image）
 - VR 嵌入 `/{locale}/vr`（粘贴 RealSee/贝壳分享链接直接嵌入）
 - 订阅/积分 `/{locale}/billing`（配置 creem 后可直达支付页）
+
+端到端页面测试（可选）
+
+    # 安装浏览器（首次）
+    npm run test:browsers
+    # 启动 dev 并跑 e2e（会自动等待 3000 端口就绪）
+    npm run dev:test
 
 模块说明
 
@@ -66,6 +77,13 @@ AI Room Helper（MVP）
     REPLICATE_DEPTH_VERSION=
     REPLICATE_CONTROLNET_MODEL=  # SDXL ControlNet-Depth 模型
     REPLICATE_CONTROLNET_VERSION=
+
+    # OpenRouter（Google Gemini 2.5 Flash Image）
+    OPENROUTER_API_KEY=...
+    OPENROUTER_MODEL=google/gemini-2.5-flash-image
+    GEN_PROVIDER=OPENROUTER
+    OPENROUTER_REFERRER=http://localhost:3000
+    OPENROUTER_TITLE=AI Room Helper
 
     # 支付（creem.io）
     CREEM_API_KEY=...

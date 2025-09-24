@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { job, credit, subscription } from "@/db/schema";
 import { eq, and, gte, lte, sql as dsql } from "drizzle-orm";
 import { saveToPublicUploads } from "@/lib/upload";
-import { generateWithReplicate } from "@/lib/generation/providers/replicate";
+import { generate } from "@/lib/generation";
 import { config } from "@/config/app";
 
 // 创建生成任务（上传图片 + prompt）并立即执行（MVP 简化版）
@@ -23,12 +23,14 @@ export async function POST(req: NextRequest) {
 
     const ref = form.get("ref");
     let savedRefPath: string | undefined = undefined;
+    let savedRefUrl: string | undefined = undefined;
     if (ref instanceof File && ref.size > 0) {
       if (!config.upload.allowed.includes(ref.type)) return new Response("参考图格式不支持", { status: 400 });
       if (ref.size > config.upload.maxBytes) return new Response("参考图过大", { status: 400 });
       const refBuf = Buffer.from(await ref.arrayBuffer());
       const savedRef = saveToPublicUploads(ref.name || "ref.jpg", refBuf);
       savedRefPath = savedRef.filePath;
+      savedRefUrl = savedRef.url;
     }
 
     const negativePrompt = String(form.get("negativePrompt") || "").trim() || undefined;
@@ -83,10 +85,15 @@ export async function POST(req: NextRequest) {
 
     // 立刻执行（MVP）
     try {
-      const result = await generateWithReplicate({
+      const base = process.env.APP_BASE_URL || req.nextUrl.origin;
+      const initUrl = new URL(savedPhoto.url, base).toString();
+      const refUrl = savedRefUrl ? new URL(savedRefUrl, base).toString() : undefined;
+
+      const result = await generate({
         prompt,
-        photoPath: savedPhoto.filePath,
-        refPath: savedRefPath,
+        // 注意：OpenRouter 需要公网 URL，这里传入完整 URL；Replicate 分支会忽略 URL，用本地路径
+        photoPath: process.env.OPENROUTER_API_KEY ? initUrl : savedPhoto.filePath,
+        refPath: process.env.OPENROUTER_API_KEY ? refUrl : savedRefPath,
         negativePrompt,
         strength,
       });

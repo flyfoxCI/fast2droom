@@ -9,7 +9,10 @@
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "test:browsers": "playwright install --with-deps",
+    "test:e2e": "playwright test --config tests/playwright.config.ts",
+    "dev:test": "start-server-and-test dev http://localhost:3000/zh \"npm run test:e2e\""
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",
@@ -40,6 +43,8 @@
     "drizzle-kit": "^0.31.4",
     "eslint": "^9",
     "eslint-config-next": "15.5.3",
+    "@playwright/test": "^1.47.2",
+    "start-server-and-test": "^2.0.3",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
