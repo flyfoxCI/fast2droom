@@ -1,8 +1,17 @@
 import { db } from "@/db";
 import { job } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc } from "drizzle-orm";
 
 export default async function DashboardPage() {
+  const isDb = Boolean(process.env.SUPABASE_DB_URL || process.env.DATABASE_URL);
+  if (!isDb) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold">最近任务</h1>
+        <div className="text-white/60 text-sm">当前未连接数据库，暂无历史任务。提交一次生成后可在此查看（或配置 SUPABASE_DB_URL/DATABASE_URL 并迁移）。</div>
+      </div>
+    );
+  }
   const rows = await db.select().from(job).orderBy(desc(job.createdAt)).limit(20);
   return (
     <div className="space-y-6">
@@ -31,4 +40,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

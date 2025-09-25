@@ -19,6 +19,13 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Brand strip */}
+      <section className="grid grid-cols-3 sm:grid-cols-6 gap-4 items-center opacity-70">
+        {['室内云','光合空间','ArchiLab','渲染社','OptiBuild','LoftWorks'].map((b,i)=> (
+          <div key={i} className="text-center text-sm glass py-2 rounded">{b}</div>
+        ))}
+      </section>
+
       {/* Features */}
       <section className="grid sm:grid-cols-3 gap-4">
         <div className="card glass space-y-2">
@@ -48,6 +55,81 @@ export default async function HomePage() {
             <p className="text-sm text-white/70 mt-1">{s.d}</p>
           </div>
         ))}
+      </section>
+
+      {/* Inspired Gallery */}
+      <section className="space-y-4">
+        <div className="text-2xl font-semibold">灵感画廊</div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            {t:'原木北欧客厅',p:'原木北欧风：奶油色墙面+浅木地板+织物沙发+暖色灯光'},
+            {t:'现代极简卧室',p:'现代极简：白灰配色+大面积留白+线性灯+金属点缀'},
+            {t:'日式侘寂餐厅',p:'日式侘寂：米白墙面+原木格栅+亚麻织物+自然光'},
+            {t:'质感灰工业风',p:'工业风：水泥灰+黑色金属+暖光源+皮革家具'},
+            {t:'法式复古风',p:'法式复古：线条墙板+复古绿+铜色灯具+花纹织物'},
+            {t:'地中海清新',p:'地中海：白蓝配色+拱形门+马赛克+原木家具'},
+          ].map((g,i)=> (
+            <a key={i} href={`design?prompt=${encodeURIComponent(g.p)}`} className="group block glass p-6 rounded-xl h-36 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent group-hover:from-white/10"/>
+              <div className="absolute right-4 bottom-4 text-sm opacity-80">点击生成</div>
+              <div className="text-lg font-semibold">{g.t}</div>
+              <div className="text-xs text-white/70 mt-1 line-clamp-2">{g.p}</div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="space-y-4">
+        <div className="text-2xl font-semibold">用户评价</div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            {n:'王女士 · 业主',c:'三天内定了风格与主色，和设计师沟通效率高很多。'},
+            {n:'刘工 · 设计师',c:'几分钟就能出两三版方案，保留结构，不担心“跑偏”。'},
+            {n:'陈先生 · 房产经纪',c:'配合 VR 链接效果演示，成交率确实提升。'},
+          ].map((t,i)=> (
+            <div key={i} className="glass p-6 rounded-xl space-y-2">
+              <div className="text-sm text-white/60">{t.n}</div>
+              <div className="text-base">“{t.c}”</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Pricing 预览（首页放置） */}
+      <section className="space-y-4">
+        <div className="text-2xl font-semibold">定价方案</div>
+        <div className="grid sm:grid-cols-3 gap-4">
+          <div className="glass p-6 rounded-xl space-y-2">
+            <div className="text-xl font-semibold">月度订阅</div>
+            <div className="text-3xl font-bold">¥ 29<span className="text-sm text-white/60"> / 月</span></div>
+            <ul className="text-sm text-white/70 list-disc pl-4 space-y-1">
+              <li>无限生成（合理使用）</li>
+              <li>优先队列</li>
+              <li>基础支持</li>
+            </ul>
+            <a href="billing" className="btn-primary mt-2 inline-block">立即订阅</a>
+          </div>
+          <div className="glass p-6 rounded-xl space-y-2 border-white/20">
+            <div className="text-xl font-semibold">年度订阅</div>
+            <div className="text-3xl font-bold">¥ 299<span className="text-sm text-white/60"> / 年</span></div>
+            <ul className="text-sm text-white/70 list-disc pl-4 space-y-1">
+              <li>无限生成（合理使用）</li>
+              <li>优先队列</li>
+              <li>邮件支持</li>
+            </ul>
+            <a href="billing" className="btn-primary mt-2 inline-block">立即订阅</a>
+          </div>
+          <div className="glass p-6 rounded-xl space-y-2">
+            <div className="text-xl font-semibold">积分包</div>
+            <div className="text-3xl font-bold">¥ 9<span className="text-sm text-white/60"> / 100积分</span></div>
+            <ul className="text-sm text白/70 list-disc pl-4 space-y-1">
+              <li>灵活按次使用</li>
+              <li>适合轻量需求</li>
+            </ul>
+            <a href="billing" className="btn-primary mt-2 inline-block">购买积分</a>
+          </div>
+        </div>
       </section>
     </div>
   );

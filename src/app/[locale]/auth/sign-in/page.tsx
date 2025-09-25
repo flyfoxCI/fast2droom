@@ -2,13 +2,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmail, signUpWithEmail } from "../../auth/actions";
+import { authClient } from "@/lib/auth-client";
 
 export default function SignInPage() {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
 
   return (
-    <div className="mx-auto max-w-md w-full py-12">
+    <div className="mx-auto max-w-md w-full py-12 space-y-6">
       <h1 className="text-2xl font-semibold mb-6">邮箱登录</h1>
       <form
         action={async (formData) => {
@@ -95,6 +96,30 @@ export default function SignInPage() {
           {message}
         </p>
       )}
+
+      <div className="text-center text-white/60">或使用社交账号一键登录</div>
+      <div className="grid grid-cols-1 gap-3">
+        <button
+          className="glass px-4 py-2 rounded hover:opacity-90"
+          onClick={async () => {
+            try {
+              await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+            } catch (e) { /* ignore */ }
+          }}
+        >
+          使用 Google 登录
+        </button>
+        <button
+          className="glass px-4 py-2 rounded hover:opacity-90"
+          onClick={async () => {
+            try {
+              await authClient.signIn.social({ provider: "facebook", callbackURL: "/" });
+            } catch (e) { /* ignore */ }
+          }}
+        >
+          使用 Facebook 登录
+        </button>
+      </div>
     </div>
   );
 }

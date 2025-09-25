@@ -5,6 +5,7 @@ import { eq, and, gte, lte, sql as dsql } from "drizzle-orm";
 import { saveToPublicUploads } from "@/lib/upload";
 import { generate } from "@/lib/generation";
 import { config } from "@/config/app";
+import fs from "node:fs";
 
 // 开发无数据库时的内存任务表（仅 dev 有效）
 const devJobs = new Map<string, any>();
@@ -18,17 +19,26 @@ export async function POST(req: NextRequest) {
     const userId = String(form.get("userId") || "").trim() || undefined;
     if (!prompt) return new Response("缺少 prompt", { status: 400 });
 
+    const photoUrlForm = String(form.get("photoUrl") || "").trim();
+    let savedPhoto: { filePath: string; url: string };
     const photo = form.get("photo");
-    if (!(photo instanceof File)) return new Response("缺少现场照片", { status: 400 });
-    if (!config.upload.allowed.includes(photo.type)) return new Response("图片格式不支持", { status: 400 });
-    if (photo.size > config.upload.maxBytes) return new Response("图片过大", { status: 400 });
-    const photoBuf = Buffer.from(await photo.arrayBuffer());
-    const savedPhoto = saveToPublicUploads(photo.name || "photo.jpg", photoBuf);
+    if (photoUrlForm && photoUrlForm.startsWith("http")) {
+      savedPhoto = { filePath: "", url: photoUrlForm };
+    } else {
+      if (!(photo instanceof File)) return new Response("缺少现场照片", { status: 400 });
+      if (!config.upload.allowed.includes(photo.type)) return new Response("图片格式不支持", { status: 400 });
+      if (photo.size > config.upload.maxBytes) return new Response("图片过大", { status: 400 });
+      const photoBuf = Buffer.from(await photo.arrayBuffer());
+      savedPhoto = saveToPublicUploads(photo.name || "photo.jpg", photoBuf);
+    }
 
     const ref = form.get("ref");
+    const refUrlForm = String(form.get("refUrl") || "").trim();
     let savedRefPath: string | undefined = undefined;
     let savedRefUrl: string | undefined = undefined;
-    if (ref instanceof File && ref.size > 0) {
+    if (refUrlForm && refUrlForm.startsWith("http")) {
+      savedRefUrl = refUrlForm;
+    } else if (ref instanceof File && ref.size > 0) {
       if (!config.upload.allowed.includes(ref.type)) return new Response("参考图格式不支持", { status: 400 });
       if (ref.size > config.upload.maxBytes) return new Response("参考图过大", { status: 400 });
       const refBuf = Buffer.from(await ref.arrayBuffer());
@@ -104,8 +114,33 @@ export async function POST(req: NextRequest) {
         if (!u) return undefined;
         try { return u.startsWith('http') ? u : new URL(u, base).toString(); } catch { return u; }
       };
-      const initUrl = toAbs(savedPhoto.url)!;
-      const refUrl = toAbs(savedRefUrl);
+      let initUrl = toAbs(savedPhoto.url)!;
+      let refUrl = toAbs(savedRefUrl);
+
+      // 若使用 OPENROUTER 且是本地 URL，则临时上传到匿名图床获取公网 URL（0x0.st）
+      const provider = String(process.env.GEN_PROVIDER || 'OPENROUTER').toUpperCase();
+      async function uploadTemp(filePath?: string) {
+        if (!filePath) return undefined;
+        try {
+          const buf = fs.readFileSync(filePath);
+          const form = new FormData();
+          form.append('file', new Blob([buf]), filePath.split('/').pop() || 'image.jpg');
+          const r = await fetch('https://0x0.st', { method: 'POST', body: form } as any);
+          const txt = (await r.text()).trim();
+          if (r.ok && txt.startsWith('http')) return txt;
+        } catch {}
+        return undefined;
+      }
+      if (provider === 'OPENROUTER') {
+        if (savedPhoto.url && savedPhoto.url.startsWith('/')) {
+          const up = await uploadTemp(savedPhoto.filePath);
+          if (up) initUrl = up;
+        }
+        if (savedRefPath && savedRefUrl && savedRefUrl.startsWith('/')) {
+          const up2 = await uploadTemp(savedRefPath);
+          if (up2) refUrl = up2;
+        }
+      }
 
       const result = await generate({
         prompt,
