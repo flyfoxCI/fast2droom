@@ -11,3 +11,4 @@ export const supabase = (() => {
   return createClient(url, anon);
 })();
 
+export const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY);

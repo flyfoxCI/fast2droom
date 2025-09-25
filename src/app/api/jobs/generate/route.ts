@@ -6,6 +6,10 @@ import { saveToPublicUploads } from "@/lib/upload";
 import { generate } from "@/lib/generation";
 import { config } from "@/config/app";
 
+// 开发无数据库时的内存任务表（仅 dev 有效）
+const devJobs = new Map<string, any>();
+const isDbConfigured = Boolean(process.env.SUPABASE_DB_URL || process.env.DATABASE_URL);
+
 // 创建生成任务（上传图片 + prompt）并立即执行（MVP 简化版）
 export async function POST(req: NextRequest) {
   try {
@@ -44,50 +48,64 @@ export async function POST(req: NextRequest) {
       if (!userId) {
         return new Response("未登录或缺少用户ID", { status: 401 });
       }
-      const now = new Date();
-      const subs = await db
-        .select()
-        .from(subscription)
-        .where(
-          and(
-            eq(subscription.userId, userId),
-            eq(subscription.provider, "creem"),
-            eq(subscription.status, "active" as any),
-          ),
-        );
-      hasSubscription = subs.some((s) => !s.periodStart || !s.periodEnd || (s.periodStart! <= now && now <= s.periodEnd!));
+      if (isDbConfigured) {
+        const now = new Date();
+        const subs = await db
+          .select()
+          .from(subscription)
+          .where(
+            and(
+              eq(subscription.userId, userId),
+              eq(subscription.provider, "creem"),
+              eq(subscription.status, "active" as any),
+            ),
+          );
+        hasSubscription = subs.some((s) => !s.periodStart || !s.periodEnd || (s.periodStart! <= now && now <= s.periodEnd!));
 
-      if (!hasSubscription) {
-        const rows = await db
-          .select({ sum: dsql<number>`coalesce(sum(${credit.amount}), 0)` })
-          .from(credit)
-          .where(eq(credit.userId, userId));
-        balance = Number(rows[0]?.sum || 0);
-        if (balance < config.creditCostPerRender) {
-          return new Response("积分不足，请购买积分或订阅", { status: 402 });
+        if (!hasSubscription) {
+          const rows = await db
+            .select({ sum: dsql<number>`coalesce(sum(${credit.amount}), 0)` })
+            .from(credit)
+            .where(eq(credit.userId, userId));
+          balance = Number(rows[0]?.sum || 0);
+          if (balance < config.creditCostPerRender) {
+            return new Response("积分不足，请购买积分或订阅", { status: 402 });
+          }
         }
+      } else {
+        // 无数据库环境下，跳过计费校验（仅用于开发演示）
+        hasSubscription = true;
       }
     }
 
-    // 记录任务
-    const [created] = await db
-      .insert(job)
-      .values({
-        id: crypto.randomUUID(),
-        type: "render2d",
-        userId,
-        status: "queued",
-        input: JSON.stringify({ prompt, photo: savedPhoto.url, ref: savedRefPath ? savedRefPath : null }),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning({ id: job.id });
+    let createdId = "";
+    if (isDbConfigured) {
+      const [created] = await db
+        .insert(job)
+        .values({
+          id: crypto.randomUUID(),
+          type: "render2d",
+          userId,
+          status: "queued",
+          input: JSON.stringify({ prompt, photo: savedPhoto.url, ref: savedRefPath ? savedRefPath : null }),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning({ id: job.id });
+      createdId = created.id;
+    } else {
+      createdId = `dev-fake-${crypto.randomUUID()}`;
+    }
 
     // 立刻执行（MVP）
     try {
       const base = process.env.APP_BASE_URL || req.nextUrl.origin;
-      const initUrl = new URL(savedPhoto.url, base).toString();
-      const refUrl = savedRefUrl ? new URL(savedRefUrl, base).toString() : undefined;
+      const toAbs = (u?: string) => {
+        if (!u) return undefined;
+        try { return u.startsWith('http') ? u : new URL(u, base).toString(); } catch { return u; }
+      };
+      const initUrl = toAbs(savedPhoto.url)!;
+      const refUrl = toAbs(savedRefUrl);
 
       const result = await generate({
         prompt,
@@ -98,17 +116,25 @@ export async function POST(req: NextRequest) {
         strength,
       });
 
-      await db
-        .update(job)
-        .set({
+      if (isDbConfigured) {
+        await db
+          .update(job)
+          .set({
+            status: "succeeded",
+            output: JSON.stringify({ images: result.images }),
+            updatedAt: new Date(),
+          })
+          .where(eq(job.id, createdId));
+      } else {
+        devJobs.set(createdId, {
+          id: createdId,
           status: "succeeded",
           output: JSON.stringify({ images: result.images }),
-          updatedAt: new Date(),
-        })
-        .where(eq(job.id, created.id));
+        });
+      }
 
       // 成功后扣费（无订阅时）
-      if (config.paywallEnforce && userId && !hasSubscription) {
+      if (isDbConfigured && config.paywallEnforce && userId && !hasSubscription) {
         await db.insert(credit).values({
           id: crypto.randomUUID(),
           userId,
@@ -119,23 +145,40 @@ export async function POST(req: NextRequest) {
       }
     } catch (e: any) {
       if (config.fakeGenerationFallback) {
-        await db
-          .update(job)
-          .set({
+        const output = { images: [savedPhoto.url] };
+        if (isDbConfigured) {
+          await db
+            .update(job)
+            .set({
+              status: "succeeded",
+              output: JSON.stringify(output),
+              updatedAt: new Date(),
+            })
+            .where(eq(job.id, createdId));
+        } else {
+          devJobs.set(createdId, {
+            id: createdId,
             status: "succeeded",
-            output: JSON.stringify({ images: [savedPhoto.url] }),
-            updatedAt: new Date(),
-          })
-          .where(eq(job.id, created.id));
+            output: JSON.stringify(output),
+          });
+        }
       } else {
-        await db
-          .update(job)
-          .set({ status: "failed", error: e?.message || "generate error", updatedAt: new Date() })
-          .where(eq(job.id, created.id));
+        if (isDbConfigured) {
+          await db
+            .update(job)
+            .set({ status: "failed", error: e?.message || "generate error", updatedAt: new Date() })
+            .where(eq(job.id, createdId));
+        } else {
+          devJobs.set(createdId, {
+            id: createdId,
+            status: "failed",
+            error: e?.message || "generate error",
+          });
+        }
       }
     }
 
-    return Response.json({ id: created.id });
+    return Response.json({ id: createdId });
   } catch (e: any) {
     return new Response(e?.message || "bad request", { status: 400 });
   }
@@ -145,6 +188,11 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return new Response("缺少 id", { status: 400 });
+  if (id.startsWith("dev-fake-")) {
+    const data = devJobs.get(id);
+    if (!data) return new Response("not found", { status: 404 });
+    return Response.json(data);
+  }
   const rows = await db.select().from(job).where(eq(job.id, id));
   if (!rows.length) return new Response("not found", { status: 404 });
   return Response.json(rows[0]);

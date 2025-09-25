@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export function saveToPublicUploads(nameHint: string, data: Buffer) {
+  // 强制使用本地静态目录（按你的要求，暂不使用 Supabase Storage）
   const dir = path.resolve("public/uploads");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   const ts = Date.now();
@@ -13,4 +14,3 @@ export function saveToPublicUploads(nameHint: string, data: Buffer) {
   const url = `/uploads/${fileName}`; // Next.js 静态可访问
   return { filePath: filePath, url };
 }
-

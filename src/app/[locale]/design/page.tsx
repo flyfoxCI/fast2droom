@@ -4,7 +4,9 @@ import React, { useState } from "react";
 export default function DesignPage() {
   const [prompt, setPrompt] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [ref, setRef] = useState<File | null>(null);
+  const [refPreview, setRefPreview] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [images, setImages] = useState<string[]>([]);
@@ -49,35 +51,62 @@ export default function DesignPage() {
     }, 2000);
   }
 
+  const presets = [
+    '原木北欧风：奶油色墙面+浅木地板+织物沙发+暖色灯光',
+    '现代极简：白灰配色+大面积留白+线性灯+金属点缀',
+    '日式侘寂：米白墙面+原木格栅+亚麻织物+自然光',
+  ];
+
   return (
-    <div className="mx-auto max-w-2xl w-full p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">生成装修效果图（MVP）</h1>
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <label className="block text-sm">现场照片（必选）</label>
-          <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+    <div className="mx-auto max-w-6xl w-full p-6 space-y-8">
+      <h1 className="text-3xl font-semibold">生成装修效果图（MVP）</h1>
+      <div className="grid sm:grid-cols-2 gap-6">
+        {/* 左侧：上传与预览 */}
+        <div className="space-y-4">
+          <div className="glass p-4 rounded-xl space-y-2">
+            <div className="text-sm">现场照片（必选）</div>
+            <input type="file" accept="image/*" onChange={(e) => {
+              const f = e.target.files?.[0] || null; setPhoto(f);
+              setPhotoPreview(f ? URL.createObjectURL(f) : null);
+            }} />
+            {photoPreview && <img src={photoPreview} alt="preview" className="rounded border" />}
+          </div>
+          <div className="glass p-4 rounded-xl space-y-2">
+            <div className="text-sm">参考风格图（可选）</div>
+            <input type="file" accept="image/*" onChange={(e) => {
+              const f = e.target.files?.[0] || null; setRef(f);
+              setRefPreview(f ? URL.createObjectURL(f) : null);
+            }} />
+            {refPreview && <img src={refPreview} alt="ref" className="rounded border" />}
+          </div>
         </div>
-        <div className="space-y-2">
-          <label className="block text-sm">参考风格图（可选）</label>
-          <input type="file" accept="image/*" onChange={(e) => setRef(e.target.files?.[0] || null)} />
+        {/* 右侧：参数与提交 */}
+        <div className="space-y-4">
+          <div className="glass p-4 rounded-xl space-y-2">
+            <div className="text-sm">需求描述 / 风格提示</div>
+            <textarea
+              className="w-full border rounded p-2 bg-transparent"
+              rows={6}
+              placeholder="例如：原木北欧风，奶油色墙面，保留原有采光布局，沙发换成灰色织物..."
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              {presets.map((p, i) => (
+                <button key={i} className="glass px-3 py-1 rounded-full text-xs hover:opacity-90" onClick={() => setPrompt(p)}>{p}</button>
+              ))}
+            </div>
+          </div>
+          <button
+            className="btn-primary"
+            onClick={submit}
+            disabled={!photo || !prompt}
+          >
+            提交生成
+          </button>
+          {jobId && <div className="text-sm text-white/60">任务ID：{jobId}</div>}
+          {status && <div className="text-sm">{status}</div>}
         </div>
-        <div className="space-y-2">
-          <label className="block text-sm">需求描述 / 风格提示</label>
-          <textarea
-            className="w-full border rounded p-2 bg-transparent"
-            rows={4}
-            placeholder="例如：原木北欧风，奶油色墙面，保留原有采光布局，沙发换成灰色织物..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-        </div>
-        <button
-          className="rounded bg-black text-white px-4 py-2 hover:opacity-90"
-          onClick={submit}
-          disabled={!photo || !prompt}
-        >
-          提交生成
-        </button>
       </div>
 
       {jobId && <div className="text-sm text-gray-500">任务ID：{jobId}</div>}
